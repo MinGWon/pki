@@ -28,13 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       state,
     } = req.body;
 
-    console.log('[verify-and-login] Request data:', {
-      challenge: challenge?.substring(0, 20) + '...',
-      signature: signature?.substring(0, 20) + '...',
-      certificateSerialNumber,
-      clientId,
-    });
-
     if (!challenge || !signature || !certificateSerialNumber) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -46,79 +39,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!certificate) {
-      console.error('[verify-and-login] Certificate not found:', certificateSerialNumber);
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    console.log('[verify-and-login] Certificate found:', {
-      serialNumber: certificate.serialNumber,
-      userId: certificate.userId,
-      subjectDN: certificate.subjectDN,
+    // 2. 서명 검증 (기존 /api/auth/signature/verify 로직과 동일)
+    const signatureHash = crypto
+      .createHash('sha256')
+      .update(signature)
+      .digest('hex');
+
+    const storedSignature = await prisma.challenge.findFirst({
+      where: {
+        challenge: signatureHash,
+        expiresAt: { gt: new Date() },
+      },
     });
 
-    // 2. 서명 검증
-    try {
-      // publicKey 형식 확인 및 변환
-      let publicKeyPem = certificate.publicKey;
-      
-      // PEM 헤더/푸터가 없으면 추가
-      if (!publicKeyPem.includes('-----BEGIN')) {
-        publicKeyPem = `-----BEGIN PUBLIC KEY-----\n${publicKeyPem}\n-----END PUBLIC KEY-----`;
-      }
+    if (!storedSignature) {
+      // 직접 서명 검증 (fallback)
+      try {
+        const verifier = crypto.createVerify('SHA256');
+        verifier.update(challenge);
+        const isValid = verifier.verify(
+          certificate.publicKey,
+          Buffer.from(signature, 'base64')
+        );
 
-      console.log('[verify-and-login] Public key format:', {
-        hasHeader: publicKeyPem.includes('-----BEGIN'),
-        length: publicKeyPem.length,
-      });
-
-      // 서명 검증 (여러 해시 알고리즘 시도)
-      const algorithms = ['SHA256', 'SHA1', 'RSA-SHA256'];
-      let isValid = false;
-      let usedAlgorithm = '';
-
-      for (const algorithm of algorithms) {
-        try {
-          const verifier = crypto.createVerify(algorithm);
-          verifier.update(challenge);
-          
-          // Base64 디코딩된 서명으로 검증
-          const signatureBuffer = Buffer.from(signature, 'base64');
-          isValid = verifier.verify(publicKeyPem, signatureBuffer);
-          
-          if (isValid) {
-            usedAlgorithm = algorithm;
-            console.log(`[verify-and-login] Signature verified with ${algorithm}`);
-            break;
-          }
-        } catch (err) {
-          console.log(`[verify-and-login] ${algorithm} verification failed:`, err);
-          continue;
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid signature' });
         }
+      } catch (err) {
+        console.error('Signature verification error:', err);
+        return res.status(401).json({ error: 'Invalid signature' });
       }
-
-      if (!isValid) {
-        console.error('[verify-and-login] Signature verification failed with all algorithms');
-        console.error('[verify-and-login] Challenge length:', challenge.length);
-        console.error('[verify-and-login] Signature length:', signature.length);
-        return res.status(401).json({ 
-          error: 'Invalid signature',
-          details: 'Signature verification failed with all supported algorithms'
-        });
-      }
-
-      console.log('[verify-and-login] Signature verified successfully with:', usedAlgorithm);
-
-    } catch (verifyError) {
-      console.error('[verify-and-login] Signature verification error:', verifyError);
-      return res.status(401).json({ error: 'Invalid signature format' });
     }
 
-    // 3. 사용자는 이미 인증서와 연결되어 있음
+    // 3. 사용자 정보
     const user = certificate.user;
 
     // 4. Authorization Code 생성
     const code = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10분
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await prisma.oAuthAuthorizationCode.create({
       data: {
@@ -144,7 +105,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    console.log('[verify-and-login] Login successful for user:', user.id);
+    // 6. Challenge 삭제 (재사용 방지)
+    if (storedSignature) {
+      await prisma.challenge.delete({ where: { id: storedSignature.id } });
+    }
 
     return res.json({
       success: true,
