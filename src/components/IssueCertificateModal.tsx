@@ -172,7 +172,7 @@ export default function IssueCertificateModal({ isOpen, onClose }: IssueCertific
       if (!registerRes.ok) throw new Error(registerData.error || '등록 실패');
 
       setUserId(registerData.user.id);
-      setStep('password');
+      setStep('password');  // 'sms-verify' → 'password'
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류 발생');
     } finally {
@@ -428,7 +428,7 @@ export default function IssueCertificateModal({ isOpen, onClose }: IssueCertific
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #f3f4f6' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {['정보입력', '본인인증', '비밀번호', '완료'].map((label, idx) => {
-              const steps: Step[] = ['form', 'verify', 'password', 'complete'];
+              const steps: Step[] = ['form', 'sms-sent', 'password', 'complete'];
               const currentIdx = steps.indexOf(step);
               const isActive = step === 'issuing' ? idx <= 2 : currentIdx >= idx;
               return (

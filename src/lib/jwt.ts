@@ -1,6 +1,7 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_ISSUER = process.env.JWT_ISSUER || 'https://pki.2check.io';
 
 export interface JWTPayload {
   sub: string;
@@ -10,6 +11,7 @@ export interface JWTPayload {
   client_id?: string;
   iat?: number;
   exp?: number;
+  iss?: string;
 }
 
 export async function verifyJWT(token: string): Promise<JWTPayload | null> {
@@ -23,6 +25,9 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
   }
 }
 
-export function signJWT(payload: object, expiresIn: string = '1h'): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+export function signJWT(payload: JWTPayload, expiresIn: string | number = '1h'): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: expiresIn as any,
+    issuer: JWT_ISSUER,
+  });
 }
