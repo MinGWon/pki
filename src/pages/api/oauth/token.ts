@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       email: user.email,
       name: user.name,
       scope: authCode.scope || undefined,
-      clientId: client_id,
+      client_id: client_id,
     });
 
     await prisma.oAuthToken.create({
