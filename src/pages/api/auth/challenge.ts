@@ -3,7 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
+  // CORS 헤더 설정
+  res.setHeader('Access-Control-Allow-Origin', 'https://samsquare.2check.io');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  // Preflight 요청 처리
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // GET, POST 모두 허용
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 

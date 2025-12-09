@@ -58,6 +58,12 @@ export default function IframeAuthPage() {
   const removableDrives = drives.filter(d => d.type === 'Removable');
 
   useEffect(() => {
+    // 팝업 창인지 iframe인지 확인
+    const isInIframe = window.self !== window.top;
+    const isPopup = window.opener !== null;
+    
+    console.log('[iframe] Window type:', { isInIframe, isPopup });
+    
     checkAgent();
   }, []);
 
@@ -135,22 +141,7 @@ export default function IframeAuthPage() {
   async function checkAgent() {
     setStep('loading');
     try {
-      // 1. Preflight OPTIONS 요청으로 Private Network Access 권한 요청
-      try {
-        await fetch(`${agentUrl}/api/health`, {
-          method: 'OPTIONS',
-          mode: 'cors',
-          headers: {
-            'Access-Control-Request-Method': 'GET',
-            'Access-Control-Request-Headers': 'content-type',
-          },
-        });
-      } catch (preflightErr) {
-        console.error('Preflight failed:', preflightErr);
-        // Preflight 실패는 무시하고 계속 진행 (일부 서버는 OPTIONS를 자동 처리)
-      }
-
-      // 2. 실제 Health Check 요청
+      // Health Check 요청
       const healthRes = await fetch(`${agentUrl}/api/health`, { 
         method: 'GET', 
         mode: 'cors',
@@ -364,7 +355,36 @@ export default function IframeAuthPage() {
   }
 
   function postMessageToParent(type: 'success' | 'error', data: { code?: string; error?: string }) {
-    if (typeof window !== 'undefined' && window.parent !== window) {
+    const isInIframe = window.self !== window.top;
+    const isPopup = window.opener !== null;
+    
+    if (isPopup && window.opener) {
+      // 팝업인 경우 opener에게 메시지 전송
+      const message = type === 'success' 
+        ? {
+            type: 'PKI_AUTH_RESPONSE',
+            payload: {
+              code: data.code,
+              state: state || null,
+            }
+          }
+        : {
+            type: 'PKI_AUTH_ERROR',
+            payload: {
+              error: data.error || 'unknown_error',
+              state: state || null,
+            }
+          };
+      
+      console.log('[popup] Sending postMessage to opener:', message);
+      window.opener.postMessage(message, '*');
+      
+      // 2초 후 팝업 창 닫기
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    } else if (isInIframe && window.parent !== window) {
+      // iframe인 경우 parent에게 메시지 전송
       const message = type === 'success' 
         ? {
             type: 'PKI_AUTH_RESPONSE',
@@ -384,7 +404,7 @@ export default function IframeAuthPage() {
       console.log('[iframe] Sending postMessage to parent:', message);
       window.parent.postMessage(message, '*');
     } else {
-      console.log('[iframe] Not in iframe or same window');
+      console.log('[standalone] Not in iframe or popup');
     }
   }
 
