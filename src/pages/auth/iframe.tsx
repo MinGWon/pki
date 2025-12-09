@@ -135,7 +135,28 @@ export default function IframeAuthPage() {
   async function checkAgent() {
     setStep('loading');
     try {
-      const healthRes = await fetch(`${agentUrl}/api/health`, { method: 'GET', mode: 'cors' });
+      // 1. Preflight OPTIONS 요청으로 Private Network Access 권한 요청
+      try {
+        await fetch(`${agentUrl}/api/health`, {
+          method: 'OPTIONS',
+          mode: 'cors',
+          headers: {
+            'Access-Control-Request-Method': 'GET',
+            'Access-Control-Request-Headers': 'content-type',
+          },
+        });
+      } catch (preflightErr) {
+        console.error('Preflight failed:', preflightErr);
+        // Preflight 실패는 무시하고 계속 진행 (일부 서버는 OPTIONS를 자동 처리)
+      }
+
+      // 2. 실제 Health Check 요청
+      const healthRes = await fetch(`${agentUrl}/api/health`, { 
+        method: 'GET', 
+        mode: 'cors',
+        credentials: 'omit',
+      });
+      
       if (!healthRes.ok) throw new Error('Agent not available');
 
       // 드라이브 목록 조회
@@ -154,7 +175,9 @@ export default function IframeAuthPage() {
       // 기본 하드디스크(C:)에서 인증서 로드
       await loadCertificates('C');
       setStep('select');
-    } catch {
+    } catch (err) {
+      console.error('Agent connection error:', err);
+      setError(err instanceof Error ? err.message : 'Agent 연결 실패');
       setStep('no-agent');
     }
   }
@@ -518,10 +541,25 @@ export default function IframeAuthPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>Agent가 필요합니다</h3>
-                <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '20px' }}>2Check Agent를 설치해주세요.</p>
+                <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>Agent 연결 실패</h3>
+                <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '12px' }}>
+                  2Check Agent가 실행 중인지 확인해주세요.
+                </p>
+                <div style={{ backgroundColor: '#fef3c7', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '12px', textAlign: 'left' }}>
+                  <p style={{ color: '#92400e', marginBottom: '8px', fontWeight: '500' }}>확인사항:</p>
+                  <ul style={{ color: '#92400e', paddingLeft: '20px', margin: 0, lineHeight: '1.6' }}>
+                    <li>Agent가 설치되어 실행 중인가요?</li>
+                    <li>Agent에서 CORS 헤더가 올바르게 설정되었나요?</li>
+                    <li>방화벽이 52080 포트를 차단하고 있나요?</li>
+                  </ul>
+                </div>
+                {error && (
+                  <div style={{ backgroundColor: '#fee2e2', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px', fontSize: '11px', color: '#991b1b', fontFamily: 'monospace', textAlign: 'left', wordBreak: 'break-word' }}>
+                    {error}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                  <a href="/download/agent" target="_blank" style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>다운로드</a>
+                  <a href="/download/agent" target="_blank" style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Agent 다운로드</a>
                   <button onClick={checkAgent} style={{ padding: '10px 20px', backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>다시 시도</button>
                 </div>
               </div>
