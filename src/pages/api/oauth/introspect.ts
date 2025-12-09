@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json({
       active: true,
       sub: payload.sub,
-      client_id: payload.clientId,
+      client_id: payload.client_id,
       email: payload.email,
       name: payload.name,
       scope: payload.scope,

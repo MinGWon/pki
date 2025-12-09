@@ -40,12 +40,11 @@ model Certificate {
 }
 
 model OAuthClient {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid())
   clientId     String   @unique
-  clientSecret String   // null이면 public client
+  clientSecret String
   name         String
-  redirectUris Json     // 허용된 redirect URI 목록 (JSON 배열로 저장)
-  scopes       Json?    // 허용된 scope 목록 (JSON 배열로 저장)
+  redirectUris Json     // 허용된 redirect URI 목록
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

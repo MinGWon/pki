@@ -18,7 +18,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientId: true,
         name: true,
         redirectUris: true,
-        scopes: true,
         createdAt: true,
       },
     });
