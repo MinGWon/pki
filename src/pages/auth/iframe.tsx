@@ -45,7 +45,7 @@ export default function IframeAuthPage() {
     state?: string;
   } | null>(null);
 
-  const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || 'http://localhost:52080';
+  const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || 'https://localhost:52443';
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 실제 사용할 값 (postMessage 우선, URL 쿼리 fallback)
@@ -545,19 +545,22 @@ export default function IframeAuthPage() {
                 <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '12px' }}>
                   2Check Agent가 실행 중인지 확인해주세요.
                 </p>
-                <div style={{ backgroundColor: '#fef3c7', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '12px', textAlign: 'left' }}>
-                  <p style={{ color: '#92400e', marginBottom: '8px', fontWeight: '500' }}>확인사항:</p>
-                  <ul style={{ color: '#92400e', paddingLeft: '20px', margin: 0, lineHeight: '1.6' }}>
-                    <li>Agent가 설치되어 실행 중인가요?</li>
-                    <li>Agent에서 CORS 헤더가 올바르게 설정되었나요?</li>
-                    <li>방화벽이 52080 포트를 차단하고 있나요?</li>
-                  </ul>
-                </div>
+                
                 {error && (
                   <div style={{ backgroundColor: '#fee2e2', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px', fontSize: '11px', color: '#991b1b', fontFamily: 'monospace', textAlign: 'left', wordBreak: 'break-word' }}>
                     {error}
                   </div>
                 )}
+
+                <div style={{ backgroundColor: '#fef3c7', padding: '12px', borderRadius: '8px', marginBottom: '12px', fontSize: '12px', textAlign: 'left' }}>
+                  <p style={{ color: '#92400e', marginBottom: '8px', fontWeight: '500' }}>확인사항:</p>
+                  <ul style={{ color: '#92400e', paddingLeft: '20px', margin: 0, lineHeight: '1.6' }}>
+                    <li>Agent가 설치되어 실행 중인가요?</li>
+                    <li>방화벽이 52443 포트를 차단하고 있나요?</li>
+                    <li>자체 서명 인증서를 신뢰했나요?</li>
+                  </ul>
+                </div>
+                
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                   <a href="/download/agent" target="_blank" style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Agent 다운로드</a>
                   <button onClick={checkAgent} style={{ padding: '10px 20px', backgroundColor: 'white', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>다시 시도</button>
