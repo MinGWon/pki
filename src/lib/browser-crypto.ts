@@ -124,7 +124,11 @@ export function generateRandomBytes(length: number): Uint8Array {
 // 랜덤 문자열 생성 (Base64 URL-safe)
 export function generateRandomString(length: number): string {
   const bytes = generateRandomBytes(length);
-  return arrayBufferToBase64(bytes.buffer)
+  const buffer = new ArrayBuffer(bytes.length);
+  const view = new Uint8Array(buffer);
+  view.set(bytes);
+  
+  return arrayBufferToBase64(buffer)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '')
