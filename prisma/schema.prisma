@@ -45,6 +45,7 @@ model OAuthClient {
   clientSecret String   // null이면 public client
   name         String
   redirectUris Json     // 허용된 redirect URI 목록 (JSON 배열로 저장)
+  scopes       Json?    // 허용된 scope 목록 (JSON 배열로 저장)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

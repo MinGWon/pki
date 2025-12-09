@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    const { name, redirectUris, scopes } = req.body;
+    const { name, redirectUris } = req.body;
 
     const clientId = randomBytes(16).toString('hex');
     const clientSecret = randomBytes(32).toString('hex');
@@ -22,7 +22,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientSecret,
         name,
         redirectUris: redirectUris || [],
-        scopes: scopes || ['openid', 'profile', 'email'],
       },
     });
 
