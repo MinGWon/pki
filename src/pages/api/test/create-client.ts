@@ -28,7 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'http://localhost:3000/test/oauth-client',
           'http://localhost:3001/callback',
         ],
-        scopes: ['openid', 'profile', 'email'],
       },
     });
 
