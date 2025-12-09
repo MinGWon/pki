@@ -28,6 +28,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       state,
     } = req.body;
 
+    console.log('[verify-and-login] Request data:', {
+      challenge: challenge?.substring(0, 20) + '...',
+      signature: signature?.substring(0, 20) + '...',
+      certificateSerialNumber,
+      clientId,
+    });
+
     if (!challenge || !signature || !certificateSerialNumber) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -39,23 +46,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!certificate) {
+      console.error('[verify-and-login] Certificate not found:', certificateSerialNumber);
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    // 2. 서명 검증
-    const verifier = crypto.createVerify('SHA256');
-    verifier.update(challenge);
-    
-    let isValid = false;
-    try {
-      isValid = verifier.verify(certificate.publicKey, Buffer.from(signature, 'base64'));
-    } catch (verifyError) {
-      console.error('Signature verification error:', verifyError);
-      return res.status(401).json({ error: 'Invalid signature format' });
-    }
+    console.log('[verify-and-login] Certificate found:', {
+      serialNumber: certificate.serialNumber,
+      userId: certificate.userId,
+      subjectDN: certificate.subjectDN,
+    });
 
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid signature' });
+    // 2. 서명 검증
+    try {
+      // publicKey 형식 확인 및 변환
+      let publicKeyPem = certificate.publicKey;
+      
+      // PEM 헤더/푸터가 없으면 추가
+      if (!publicKeyPem.includes('-----BEGIN')) {
+        publicKeyPem = `-----BEGIN PUBLIC KEY-----\n${publicKeyPem}\n-----END PUBLIC KEY-----`;
+      }
+
+      console.log('[verify-and-login] Public key format:', {
+        hasHeader: publicKeyPem.includes('-----BEGIN'),
+        length: publicKeyPem.length,
+      });
+
+      // 서명 검증 (여러 해시 알고리즘 시도)
+      const algorithms = ['SHA256', 'SHA1', 'RSA-SHA256'];
+      let isValid = false;
+      let usedAlgorithm = '';
+
+      for (const algorithm of algorithms) {
+        try {
+          const verifier = crypto.createVerify(algorithm);
+          verifier.update(challenge);
+          
+          // Base64 디코딩된 서명으로 검증
+          const signatureBuffer = Buffer.from(signature, 'base64');
+          isValid = verifier.verify(publicKeyPem, signatureBuffer);
+          
+          if (isValid) {
+            usedAlgorithm = algorithm;
+            console.log(`[verify-and-login] Signature verified with ${algorithm}`);
+            break;
+          }
+        } catch (err) {
+          console.log(`[verify-and-login] ${algorithm} verification failed:`, err);
+          continue;
+        }
+      }
+
+      if (!isValid) {
+        console.error('[verify-and-login] Signature verification failed with all algorithms');
+        console.error('[verify-and-login] Challenge length:', challenge.length);
+        console.error('[verify-and-login] Signature length:', signature.length);
+        return res.status(401).json({ 
+          error: 'Invalid signature',
+          details: 'Signature verification failed with all supported algorithms'
+        });
+      }
+
+      console.log('[verify-and-login] Signature verified successfully with:', usedAlgorithm);
+
+    } catch (verifyError) {
+      console.error('[verify-and-login] Signature verification error:', verifyError);
+      return res.status(401).json({ error: 'Invalid signature format' });
     }
 
     // 3. 사용자는 이미 인증서와 연결되어 있음
@@ -89,6 +144,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
+    console.log('[verify-and-login] Login successful for user:', user.id);
+
     return res.json({
       success: true,
       code,
@@ -100,7 +157,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
-    console.error('Verify and login error:', error);
+    console.error('[verify-and-login] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
