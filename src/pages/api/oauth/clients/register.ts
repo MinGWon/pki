@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { name, redirectUris, scopes } = req.body;
+    const { name, redirectUris } = req.body;
 
     if (!name || !redirectUris || !Array.isArray(redirectUris)) {
       return res.status(400).json({ error: 'Name and redirectUris are required' });
@@ -29,7 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientSecret,
         name,
         redirectUris,
-        scopes: scopes || ['openid', 'profile', 'email'],
       },
     });
 
@@ -49,7 +48,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientSecret: client.clientSecret,
         name: client.name,
         redirectUris: client.redirectUris,
-        scopes: client.scopes,
       },
     });
   } catch (error) {
